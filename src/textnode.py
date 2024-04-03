@@ -34,7 +34,6 @@ def text_node_to_html_node(text_node):
     elif text_node.text_type == "link":
         return LeafNode(tag="a", value=text_node.text, props={"href": text_node.url})
     elif text_node.text_type == "image":
-        # Ensure image nodes are created with an empty string as value instead of None to avoid constructor errors
         return LeafNode(tag="img", value="", props={"src": text_node.url, "alt": text_node.text})
     else:
         raise ValueError(f"Unhandled type: {text_node.text_type}")
