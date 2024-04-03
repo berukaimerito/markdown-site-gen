@@ -1,120 +1,100 @@
-from sys import _current_frames
-from textnode import TextNode
-
-def strip_delimiters(node_text, delimiter):
-    if node_text.startswith(delimiter) and node_text.endswith(delimiter):
-        return node_text[len(delimiter):-len(delimiter)]
-    return node_text
-
-# def split_nodes_delimiter(old_nodes, delimiter, text_type):
-#     valid_nodes = {
-#         "text_type_text": "text",
-#         "text_type_code": "code",
-#         "text_type_italic": "italic",
-#         "text_type_bold": "bold"
-#     }
-#     if not delimiter:
-#         raise ValueError("Invalid delimeter.")
-
-#     values = old_nodes.text.split(" ")
-#     nodes = []
-#     inside_delimiter = False
-#     current_text = []
-
-#     for i,v in enumerate(values):
-#         if v.startswith(delimiter) or inside_delimiter:
-#             if v.endswith(delimiter):
-#                 inside_delimiter = False
-#                 current_text.append(v)
-#                 deli_node = " ".join(node for node in current_text)
-#                 nodes.append(deli_node)
-#                 current_text = []
-#             else:
-#                 inside_delimiter = True
-#                 current_text.append(v)
-#         else:
-#             nodes.append(v)
-
-#     final_nodes = []
-#     text_node = ""
-
-#     for node_text in nodes:
-#         if delimiter in node_text:
-#         # If there's accumulated text, create a TextNode for it first
-#             if text_node:
-#                 final_nodes.append(TextNode(text_node.strip(), "text"))
-#                 text_node = ""  # Reset the accumulator
-#             clean_text = strip_delimiters(node_text, delimiter)
-#             final_nodes.append(TextNode(clean_text, text_type))
-#         else:
-#             text_node += node_text + " "
-
-#     # After the loop, check if there's any remaining text to be added as a TextNode
-#     if text_node:
-#         final_nodes.append(TextNode(text_node.strip(), "text"))
-
-#     print(final_nodes)
-#     return final_nodes
-# def split_nodes_delimiter(text, delimiter, text_type):
-#     parts = text.split(delimiter)
-#     nodes = []
-#     inside_delimiter = False
-
-#     for part in parts:
-#         # Toggle the inside_delimiter flag to know when you're entering or exiting a bold text segment
-#         if inside_delimiter:
-#             # The part is bold text
-#             nodes.append(TextNode(part, text_type))
-#         else:
-#             # The part is regular text
-#             # Ensure leading and trailing spaces are preserved by checking if the part is non-empty
-#             if part:
-#                 nodes.append(TextNode(part, "text"))
-#         inside_delimiter = not inside_delimiter
-
-#     print(nodes)
-#     return nodes
+import os
+import shutil
+from md_to_html import markdown_to_html_node
 
 
-def split_nodes_delimiter(old_nodes, delimiter, text_type):
-    new_nodes = []
 
-    for node in old_nodes:
-        # Check if the node is of type 'text' and requires processing
-        if node.text_type == "text":
-            start = 0  # Start index of the current segment
-            while start < len(node.text):
-                # Find the next occurrence of the delimiter
-                open_delim = node.text.find(delimiter, start)
-                if open_delim == -1:  # No more delimiters found
-                    new_nodes.append(TextNode(node.text[start:], "text", node.url))
-                    break
+def have_heading(md):
+    lines = md.split('\n')
+    for line in lines:
+        stripped_line = line.lstrip()
+        if stripped_line.lstrip().startswith('# ') or stripped_line[1:].strip():
+            return True
+    return False
 
-                # Add text before the delimiter as a 'text' node
-                if open_delim > start:
-                    new_nodes.append(TextNode(node.text[start:open_delim], "text", node.url))
 
-                # Find the closing delimiter
-                close_delim = node.text.find(delimiter, open_delim + len(delimiter))
-                if close_delim == -1:  # No closing delimiter found
-                    # Treat the rest of the text as regular text if no closing delimiter is found
-                    new_nodes.append(TextNode(node.text[open_delim:], "text", node.url))
-                    break
-                else:
-                    # Add text within delimiters as a new node of the specified type
-                    delim_text = node.text[open_delim + len(delimiter):close_delim]
-                    new_nodes.append(TextNode(delim_text, text_type, node.url))
-                    start = close_delim + len(delimiter)
+def extract_title(markdown):
+    if have_heading(markdown) == False:
+        raise ValueError("Markdown must include a heading. All pages need h1 header.")
+
+    lines = markdown.split("\n")
+    for line in lines:
+        stripped_line = line.lstrip()
+        if stripped_line.startswith('# '):
+            return stripped_line[1:].strip()
+    return 'Unknown Heading'
+
+
+def generate_page(from_path, template_path, dest_path):
+
+    # Read the markdown file at from_path and store the contents in a variable.
+    with open(from_path, 'r') as markdown_file:
+        md_content = markdown_file.read()
+
+    # Read the template file at template_path and store the contents in a variable.
+    with open(template_path, 'r') as template_file:
+        template_content = template_file.read()
+
+    # Use your markdown_to_html_node function and .to_html() method to convert the markdown file to HTML.
+    html_node = markdown_to_html_node(md_content)
+    html_content = html_node.to_html()  # assuming html_node is an instance of HTMLNode
+
+    # Use the extract_title function to grab the title of the page.
+    title = extract_title(md_content)
+
+    # Replace the {{ Title }} and {{ Content }} placeholders in the template with the HTML and title you generated.
+    template_content  = template_content.replace("{{ Title }}", title)
+    template_content =  template_content.replace("{{ Content }}", html_content)
+
+    dest_dir = os.path.dirname(dest_path)
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+
+    with open(dest_path, 'w') as output_file:
+        output_file.write(template_content)
+
+
+
+
+
+def copy_directory_contents(src, dest):
+    """
+    Recursively copy all files and directories from src to dest.
+    """
+    if not os.path.exists(dest):
+        os.makedirs(dest)
+
+    for item in os.listdir(src):
+        src_path = os.path.join(src, item)
+        dest_path = os.path.join(dest, item)
+
+        # Recursively copy directories
+        if os.path.isdir(src_path):
+            copy_directory_contents(src_path, dest_path)
         else:
-            # For nodes not of type 'text', add them directly to the new list
-            new_nodes.append(node)
+            shutil.copy(src_path, dest_path)
+            print(f"Copied {src_path} to {dest_path}")
 
-    print(new_nodes)
-    return new_nodes
 
+def copy_static():
+    current_script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_directory = os.path.dirname(current_script_dir)
+    public_directory = os.path.join(project_directory, 'public')
+    static_directory = os.path.join(project_directory, 'static')
+    print(f"Project directory: {project_directory}")
+    print(f"Static directory: {static_directory}")
+    print(f"Public directory: {public_directory}")
+
+    # Ensure the public directory is cleared before copying
+    if os.path.exists(public_directory):
+        shutil.rmtree(public_directory)
+    os.makedirs(public_directory)
+    copy_directory_contents(static_directory, public_directory)
+
+def main():
+    # First, copy static files
+    copy_static()
+    generate_page("content/index.md", "template.html", "public/index.html")
 
 if __name__ == "__main__":
-    dummy_obj = TextNode("This is a text node", "bold", "https://www.boot.dev")
-    node = TextNode("This is text with a `code block` word", "text")
-    new_nodes = split_nodes_delimiter([node], "`", "code")
-    print(repr(dummy_obj))
+    main()
