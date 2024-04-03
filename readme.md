@@ -8,7 +8,7 @@ A Python-based tool for converting markdown documents into HTML. It supports a w
 
 ## Features
 
--   Transforms markdown elements including headings, paragraphs, bold andg italic text, links, images, and code snippets into their HTML counterparts.
+-   Transforms markdown elements including headings, paragraphs, bold and italic text, links, images, and code snippets into their HTML counterparts.
 -   Designed with object-oriented principles.
 -   Supports basic error handling with a roadmap for more sophisticated mechanisms.
 
